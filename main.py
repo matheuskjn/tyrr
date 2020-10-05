@@ -1,32 +1,31 @@
-from GameScreen import GameScreen
-import cv2  as cv
+from gamescreen import GameScreen 
+from vision import Vision
+from hsvfilter import HsvFilter
+import cv2 as cv
 
-img_char = cv.imread('imagens/dev_char.png',cv.IMREAD_UNCHANGED)
-img_char =cv.cvtColor(img_char, cv.COLOR_BGR2BGRA)
-needle_w = img_char.shape[1]
-needle_h = img_char.shape[0]
+
+#Monstros procurados
+mystcase = Vision('imagens/mystcase_final.png')
+
+#Filtro de imagem
+hsv_filter = HsvFilter(0,73,0,0,223,255,0,0,0,0)
+
+
 while(True):
     
+    #Carrega tela do jogo
     screenshot = GameScreen.capture()
+    screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR) 
     
-    screenshot = cv.cvtColor(screenshot, cv.COLOR_BGR2BGRA)
+    #Processa imagem e localiza monstros 
+    screenshot_processed = mystcase.apply_hsv_filter(screenshot,hsv_filter)
+    rect=mystcase.find(screenshot_processed,threshold=0.12)
+    point = mystcase.points(rect)
     
-    result = cv.matchTemplate(screenshot, img_char, cv.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
-   
-    threshold = 0.8
-    if max_val >= threshold:
-        top_left  = max_loc
-        botton_right = (top_left[0] + needle_w, top_left[1] + needle_h)
-        cv.rectangle(screenshot, top_left, (top_left[0] + needle_w, top_left[1] + needle_h), (0, 255, 0), thickness=2, lineType =cv.LINE_4)
-        cv.putText(screenshot, 'Char', (max_loc[0]+5,max_loc[1]-5), cv.FONT_HERSHEY_SIMPLEX, 0.6, (36,255,12), 2)
-    cv.imshow('IA Vision',screenshot)
-    
-    #print('FPS {}'.format(1/ (time() - loop_time)))
-    #loop_time = time()
-    
+    #Desenha os pontos no mapa
+    output = mystcase.draw_marker(screenshot,point)   
+
+    cv.imshow('Tyrr Vision',output)    
     if cv.waitKey(1) == ord('q'):
         cv.destroyAllWindows()
         break
-    
-print('Done')
