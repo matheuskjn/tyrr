@@ -1,31 +1,54 @@
 from gamescreen import GameScreen 
-from vision import Vision
-from hsvfilter import HsvFilter
+from detection import Detection
+from bot import RagnarokBot#,BotState
 import cv2 as cv
+from time import time
+'''
+import keyboard
+def killer():
+    raise KeyboardInterrupt
+keyboard.add_hotkey('ctrl+shift+s', killer)  
+'''
+from vision import Vision
+DEBUG = True
+
+#Detecção Monstro
+detector = Detection('imagens/mystcase_final.png')
+
+#Tela do jogo
+gamescreen = GameScreen('TalonRO')
+gx,gy,gw,gh = gamescreen.screen_position()
+#Criar Bot
+bot = RagnarokBot(gx,gy,gw,gh)
+
+#Iniciar threads
+detector.start()
+bot.start()
 
 
-#Monstros procurados
-mystcase = Vision('imagens/mystcase_final.png')
-
-#Filtro de imagem
-hsv_filter = HsvFilter(0,73,0,0,223,255,0,0,0,0)
-
-
+loop_time=time()
 while(True):
     
-    #Carrega tela do jogo
-    screenshot = GameScreen.capture()
-    screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR) 
-    
-    #Processa imagem e localiza monstros 
-    screenshot_processed = mystcase.apply_hsv_filter(screenshot,hsv_filter)
-    rect=mystcase.find(screenshot_processed,threshold=0.12)
-    point = mystcase.points(rect)
-    
-    #Desenha os pontos no mapa
-    output = mystcase.draw_marker(screenshot,point)   
+    #Cria imagem da tela do jogo
+    screenshot = gamescreen.capture()
+    screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR)    
 
-    cv.imshow('Tyrr Vision',output)    
+    #Processa imagem e localiza monstros 
+    detector.update(screenshot)
+
+    #Bot
+    if len(detector.point)>0:
+        bot.update(detector.point) 
+
+    #Modo Debug
+    if DEBUG:
+        output = Vision.draw_marker(screenshot,detector.point) 
+        cv.imshow('Tyrr Vision',output) 
+        print('FPS {}'.format(1/ (time() - loop_time)))
+        loop_time=time()
     if cv.waitKey(1) == ord('q'):
+        detector.stop()
+        bot.stop()
         cv.destroyAllWindows()
         break
+    

@@ -1,3 +1,4 @@
+#Apenas para inicia classe
 class HsvFilter:
 
     def __init__(self, hMin=None, sMin=None, vMin=None, hMax=None, sMax=None, vMax=None, 
