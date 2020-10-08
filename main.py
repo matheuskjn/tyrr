@@ -3,12 +3,7 @@ from detection import Detection
 from bot import RagnarokBot#,BotState
 import cv2 as cv
 from time import time
-'''
-import keyboard
-def killer():
-    raise KeyboardInterrupt
-keyboard.add_hotkey('ctrl+shift+s', killer)  
-'''
+
 from vision import Vision
 DEBUG = True
 
@@ -46,6 +41,8 @@ while(True):
         cv.imshow('Tyrr Vision',output) 
         print('FPS {}'.format(1/ (time() - loop_time)))
         loop_time=time()
+    
+    #Se apertar 'q' para o loop e threads
     if cv.waitKey(1) == ord('q'):
         detector.stop()
         bot.stop()
