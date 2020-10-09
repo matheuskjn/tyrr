@@ -1,51 +1,55 @@
-from gamescreen import GameScreen 
-from detection import Detection
-from bot import RagnarokBot#,BotState
+from vision import Screen 
+from detection import Detection,Draw
+from bot import RagnarokBot
 import cv2 as cv
-from time import time
 
-from vision import Vision
+#Parametro
 DEBUG = True
+threshold=0.6
+output='rectangle'
+
+#Captura tela do jogo
+screen = Screen('TalonRO')
+gx,gy,gw,gh = screen.position()
 
 #Detecção Monstro
-detector = Detection('imagens/mystcase_final.png')
+detector = Detection('imagens/wormtail.png',threshold=threshold,output=output)
 
-#Tela do jogo
-gamescreen = GameScreen('TalonRO')
-gx,gy,gw,gh = gamescreen.screen_position()
+
 #Criar Bot
 bot = RagnarokBot(gx,gy,gw,gh)
 
 #Iniciar threads
 detector.start()
 bot.start()
+#screen.start()
 
-
-loop_time=time()
 while(True):
     
     #Cria imagem da tela do jogo
-    screenshot = gamescreen.capture()
+    screenshot = screen.capture()
     screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR)    
+
 
     #Processa imagem e localiza monstros 
     detector.update(screenshot)
-
+    
+    '''
     #Bot
     if len(detector.point)>0:
         bot.update(detector.point) 
-
+    '''  
     #Modo Debug
     if DEBUG:
-        output = Vision.draw_marker(screenshot,detector.point) 
+        #output = Draw.marker(screenshot,detector.point) 
+        output = Draw.rectangle(screenshot,detector.rectangle) 
         cv.imshow('Tyrr Vision',output) 
-        print('FPS {}'.format(1/ (time() - loop_time)))
-        loop_time=time()
     
     #Se apertar 'q' para o loop e threads
     if cv.waitKey(1) == ord('q'):
         detector.stop()
         bot.stop()
+        #screen.stop()
         cv.destroyAllWindows()
         break
     

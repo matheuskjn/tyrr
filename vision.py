@@ -1,149 +1,89 @@
-#Essa classe localiza templates na imagem, localiza pontos, faz desenhos nas imagem
+#Aqui temos a fonte de imagens
+#No caso de jogos é utilizado a classe Screen para captura da tela
 
-import cv2 as cv
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gdk
+from gi.repository import GdkPixbuf
 import numpy as np
-from hsvfilter import HsvFilter
+from threading import Thread, Lock
+import cv2 as cv
+from Xlib.display import Display
 
-class Vision:
-    #Constantes
-    TRACKBAR_WINDOW = "Trackbars"
+#Funcao que retorna 
+def locate_app(stack,app):
+    disp = Display()
+    NET_WM_NAME = disp.intern_atom('_NET_WM_NAME')
+    WM_NAME = disp.intern_atom('WM_NAME') 
+    name= []
+    for i, w in enumerate(stack):
+        win_id =w.get_xid()
+        window_obj = disp.create_resource_object('window', win_id)
+        for atom in (NET_WM_NAME, WM_NAME):
+            window_name=window_obj.get_full_property(atom, 0)
+            name.append(window_name.value)
+    for l in range(len(stack)):
+        if(name[2*l]==app):
+            return stack[l]
 
+class Screen:
     #Propriedades
-    obj_img = None
-    obj_w = 0
-    obj_h = 0
-    method = None
-
-    #Construtor
-    def __init__(self, obj_img_path, method=cv.TM_CCOEFF_NORMED,threshold=0.5,EPS=0.1):
-        #Carrega imagem
-        self.obj_img = cv.cvtColor(cv.imread(obj_img_path),cv.COLOR_RGB2BGR)        
-        # Salva dimensoes
-        self.obj_w = self.obj_img.shape[1]
-        self.obj_h = self.obj_img.shape[0]
-        # Define metodo
-        self.method = method
-        self.threshold=threshold
-        self.EPS =EPS
-
-    #Localiza na imagem os templates e retorna os retangulos
-    def find(self,screen_img):
-        result = cv.matchTemplate(screen_img, self.obj_img, self.method)
-        locations = np.where(result >= self.threshold)
-        locations = list(zip(*locations[::-1]))
-        rectangles = []
-        for loc in locations:
-            rect = [int(loc[0]),int(loc[1]),self.obj_w,self.obj_h]
-            rectangles.append(rect)
-            rectangles.append(rect)
-        rectangles, weights = cv.groupRectangles(rectangles, 1,self.EPS)
-        return rectangles
+    stopped = True
+    lock = None
+    screenshot = None    
     
-    #Lista de pontos no centro dos retangulos
-    def points(self,rectangles):
-        points= []
-        for (x, y, w, h) in rectangles:
-            center_x = x + int(w/2)
-            center_y = y + int(h/2)
-            points.append((center_x,center_y))      
-        return points     
+    def __init__(self,app):
+        #Para trancar objeto
+        self.lock = Lock()  
+        #Captura tela de acordo com o screen_id 
+        self.window = Gdk.get_default_root_window()
+        self.screen = self.window.get_screen()
+        self.active = self.screen.get_window_stack()
+        self.app = locate_app(self.active,app)
+    def capture(self): 
+        #Captura a tela identificada em self.active
+        p = Gdk.pixbuf_get_from_window(self.app,0,0,self.app.get_geometry()[2],self.app.get_geometry()[3])   
+        #Converter a imagem pixbuf em array
+        w,h,c,r=(p.get_width(), p.get_height(), p.get_n_channels(), p.get_rowstride())
+        assert p.get_colorspace() == GdkPixbuf.Colorspace.RGB
+        assert p.get_bits_per_sample() == 8
+        if  p.get_has_alpha():
+            assert c == 4
+        else:
+            assert c == 3
+        assert r >= w * c
+        a=np.frombuffer(p.get_pixels(),dtype=np.uint8)
+        if a.shape[0] == w*c*h:
+            return a.reshape( (h, w, c) )
+        else:
+            b=np.zeros((h,w*c),'uint8')
+            for j in range(h):
+                b[j,:]=a[r*j:r*j+w*c]
+            return b.reshape( (h, w, c) )
     
-    #Desenha retangulo na imagem
-    def draw_rect(self,screen_img,rectangles):
-         line_color = (0, 255, 0)
-         line_type = cv.LINE_4
-         for (x, y, w, h) in rectangles:
-             top_left = (x, y)
-             bottom_right = (x + w, y + h)
-             cv.rectangle(screen_img, top_left, bottom_right, line_color, lineType=line_type)
-         return screen_img
+    def position(self):
+        #Retornar a posicao da janela identificada em self.active
+        #Nao esta funcionando corretamente
+        x,y,w,h = self.app.get_geometry()
+        return 0,32,w,h
     
-    #Desenha mira na imagem de acordo com os pontos
-    def draw_marker(screen_img,points):
-        marker_color = (0,255,0) 
-        marker_type = cv.MARKER_CROSS   
-        for (x,y) in points:
-            cv.drawMarker(screen_img, (x, y), marker_color, marker_type)
-        return screen_img
-
-    #GUI para analisar HSV na imagem
-    def init_control_gui(self):
-        cv.namedWindow(self.TRACKBAR_WINDOW, cv.WINDOW_NORMAL)
-        cv.resizeWindow(self.TRACKBAR_WINDOW, 350, 700)
-        def nothing(position):
-            pass
-        # OpenCV scale for HSV is H: 0-179, S: 0-255, V: 0-255
-        cv.createTrackbar('HMin', self.TRACKBAR_WINDOW, 0, 179, nothing)
-        cv.createTrackbar('SMin', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('VMin', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('HMax', self.TRACKBAR_WINDOW, 0, 179, nothing)
-        cv.createTrackbar('SMax', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('VMax', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        # Set default value for Max HSV trackbars
-        cv.setTrackbarPos('HMax', self.TRACKBAR_WINDOW, 179)
-        cv.setTrackbarPos('SMax', self.TRACKBAR_WINDOW, 255)
-        cv.setTrackbarPos('VMax', self.TRACKBAR_WINDOW, 255)
-        # trackbars for increasing/decreasing saturation and value
-        cv.createTrackbar('SAdd', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('SSub', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('VAdd', self.TRACKBAR_WINDOW, 0, 255, nothing)
-        cv.createTrackbar('VSub', self.TRACKBAR_WINDOW, 0, 255, nothing)
-
-    #Retorna HsvFilter de acordo com meus filtros na GUI
-    def get_hsv_filter_from_controls(self):
-        hsv_filter = HsvFilter()
-        hsv_filter.hMin = cv.getTrackbarPos('HMin', self.TRACKBAR_WINDOW)
-        hsv_filter.sMin = cv.getTrackbarPos('SMin', self.TRACKBAR_WINDOW)
-        hsv_filter.vMin = cv.getTrackbarPos('VMin', self.TRACKBAR_WINDOW)
-        hsv_filter.hMax = cv.getTrackbarPos('HMax', self.TRACKBAR_WINDOW)
-        hsv_filter.sMax = cv.getTrackbarPos('SMax', self.TRACKBAR_WINDOW)
-        hsv_filter.vMax = cv.getTrackbarPos('VMax', self.TRACKBAR_WINDOW)
-        hsv_filter.sAdd = cv.getTrackbarPos('SAdd', self.TRACKBAR_WINDOW)
-        hsv_filter.sSub = cv.getTrackbarPos('SSub', self.TRACKBAR_WINDOW)
-        hsv_filter.vAdd = cv.getTrackbarPos('VAdd', self.TRACKBAR_WINDOW)
-        hsv_filter.vSub = cv.getTrackbarPos('VSub', self.TRACKBAR_WINDOW)
-        return hsv_filter
-
-    #Aplica filtro HSV na imagem
-    def apply_hsv_filter(self, original_image, hsv_filter=None):
-        # convert image to HSV
-        hsv = cv.cvtColor(original_image, cv.COLOR_BGR2HSV)
-
-        # if we haven't been given a defined filter, use the filter values from the GUI
-        if not hsv_filter:
-            hsv_filter = self.get_hsv_filter_from_controls()
-
-        # add/subtract saturation and value
-        h, s, v = cv.split(hsv)
-        s = self.shift_channel(s, hsv_filter.sAdd)
-        s = self.shift_channel(s, -hsv_filter.sSub)
-        v = self.shift_channel(v, hsv_filter.vAdd)
-        v = self.shift_channel(v, -hsv_filter.vSub)
-        hsv = cv.merge([h, s, v])
-
-        # Set minimum and maximum HSV values to display
-        lower = np.array([hsv_filter.hMin, hsv_filter.sMin, hsv_filter.vMin])
-        upper = np.array([hsv_filter.hMax, hsv_filter.sMax, hsv_filter.vMax])
-        # Apply the thresholds
-        mask = cv.inRange(hsv, lower, upper)
-        result = cv.bitwise_and(hsv, hsv, mask=mask)
-
-        # convert back to BGR for imshow() to display it properly
-        img = cv.cvtColor(result, cv.COLOR_HSV2BGR)
-
-        return img
-
-    #Metodo auxiliar para aplicar HSV na imagem
-    def shift_channel(self, c, amount):
-        if amount > 0:
-            lim = 255 - amount
-            c[c >= lim] = 255
-            c[c < lim] += amount
-        elif amount < 0:
-            amount = -amount
-            lim = amount
-            c[c <= lim] = 0
-            c[c > lim] -= amount
-        return c
-
-
+    def start(self):
+        #Inicia thread
+        self.stopped= False
+        t = Thread(target=self.run)
+        t.start()
+        
+    def stop(self):
+        #Para thread
+        self.stopped= True
+        
+    def run(self):
+        while not self.stopped:
+            #Tira screenshot da tela do jogo
+            screenshot = self.capture()
+            #Trata imagem 
+            screenshot = cv.cvtColor(screenshot, cv.COLOR_RGB2BGR) 
+            #Atualiza variavel screenshot
+            self.lock.acquire()
+            self.screenshot = screenshot
+            self.lock.release()
