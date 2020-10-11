@@ -105,7 +105,7 @@ class Draw:
     
     #Desenha mira
     def marker(screen_img,points):
-        marker_color = (0,255,0) 
+        marker_color = (0,0,220) 
         marker_type = cv.MARKER_CROSS   
         for (x,y) in points:
             cv.drawMarker(screen_img, (x, y), marker_color, marker_type)
