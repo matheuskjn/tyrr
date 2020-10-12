@@ -1,5 +1,5 @@
-#Deteccao de objetos dentro da imagem obtida no vision
-#retornando as coordenadas x,y do objeto (point)
+#Deteccao de objetos dentro da imagem
+#retornando as coordenadas ou um retangulo
 
 import cv2 as cv
 import numpy as np

@@ -1,5 +1,5 @@
 #Aqui temos a fonte de imagens
-#No caso de jogos é utilizado a classe Screen para captura da tela
+#No caso de jogos e utilizado a captura da tela
 
 import gi
 gi.require_version('Gtk', '3.0')

@@ -1,5 +1,7 @@
-from pynput.mouse import Button, Controller
-from pynput.keyboard import Controller as Controller2
+#Logica do bot
+#Processa os dados e aciona os perifericos (mouse e teclado)
+
+from peripheral import Mouse,Keyboard
 from time import time,sleep
 from threading import Thread,Lock
 from math import sqrt
@@ -9,8 +11,7 @@ class BotState:
     INITIALIZING = 0    #Inicializando bot
     SEARCHING = 1       #Movimentacao para procurar monstros
     ATTACKING = 2       #Caso tenha monstros então clica
-    COLLECTING = 3      #Coletando drop
-    
+    COLLECTING = 3      #Coletando drop   
 
 class RagnarokBot:
     #Parametros
@@ -20,8 +21,13 @@ class RagnarokBot:
     HAND_MATCH_THRESHOLD = 0.8
     MOVEMENT_STOPPED_THRESHOLD = 0.975
     LOCATION_PIXEL_SPACE = 40
+    KEY_TELEPORT = 'f'
+    KEY_ATKSKILL = 'u'
+    KEY_STEAL = 's'
+    
     stopped = True
     lock = None
+    
 
     #Propriedades
     state = None
@@ -51,8 +57,8 @@ class RagnarokBot:
                               (self.my_pos_x+self.LOCATION_PIXEL_SPACE,self.my_pos_y-self.LOCATION_PIXEL_SPACE),
                               (self.my_pos_x-self.LOCATION_PIXEL_SPACE,self.my_pos_y-self.LOCATION_PIXEL_SPACE)] 
         #Mouse e Teclado
-        self.mouse = Controller()
-        self.keyboard = Controller2()
+        self.mouse = Mouse()
+        self.keyboard = Keyboard()
         #Thread
         self.lock = Lock()
         #Imagem para confirmar monstro,item
@@ -101,14 +107,12 @@ class RagnarokBot:
    
     def pick_up_item(self):
         for i in self.location_item:
-            self.mouse.position= i
+            self.mouse.move_instant(i)
             sleep(0.25)
             result = cv.matchTemplate(self.screenshot, self.hand, cv.TM_CCOEFF_NORMED)
             min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
             if max_val >= self.HAND_MATCH_THRESHOLD:
-                self.mouse.press(Button.left)
-                sleep(0.5)
-                self.mouse.release(Button.left)
+                self.mouse.click_left()
                 print('Item pego')
                 return
         print('Sem item')
@@ -129,24 +133,20 @@ class RagnarokBot:
             target_pos = targets[target_i]
             screen_x, screen_y = self.get_screen_position(target_pos)
             print('Provavel monstro na coordenada x:{} y:{}'.format(screen_x, screen_y))
-            self.mouse.position= (screen_x,screen_y) 
+            self.mouse.move_instant((screen_x,screen_y))
 
             #Espera um tempo
-            sleep(2)
+            sleep(1)
             #confirma icone de ataque no monstro
             if self.confirm_sword(target_pos):
                 print('Monstro confirmado')
                 print('Atacando')
                 #Define que localizou monstro
                 found_sword = True
-                #Seleciona Skill
-                self.keyboard.press('u')
-                sleep(0.25)
-                self.keyboard.release('u')
+                #Skill
+                self.keyboard.press(self.KEY_ATKSKILL)
                 #Clica
-                self.mouse.press(Button.left)
-                sleep(0.25)
-                self.mouse.release(Button.left)
+                self.mouse.click_left()
                 #Salva coordenada 
                 self.click_history.append(target_pos)
             #Proximo target
@@ -194,28 +194,27 @@ class RagnarokBot:
             
             #Acoes estado SEARCHING
             if self.state == BotState.SEARCHING:
-                #Se tem monstros perto
-                if len(self.targets)>0:
-                      #Reseta Info
-                      self.info=1
-                      #Guarda tempo
-                      self.timestamp = time()
-                      #Ir para estado de ataque
-                      self.lock.acquire()
-                      self.state = BotState.ATTACKING
-                      self.lock.release()
-                #Se nao tem
-                else:
-                    #Informar uma vez
+                #Tempo para identificar monstros
+                sleep(3)      
+                #Se nao tem monstro
+                if len(self.targets)==0:
+                    #Informar
                     if self.info==1:
                         print('Monstro não encontrado')
-                        print('Procurando no mapa')
-                        self.info=0  
-                    #Vai para direita
-                    self.mouse.position= (self.my_pos_x+100,self.my_pos_y)
-                    self.mouse.press(Button.left)
-                    sleep(0.25)
-                    self.mouse.release(Button.left)
+                        self.info=0
+                    #teleportar
+                    print('Teleportando')
+                    self.keyboard.press(self.KEY_TELEPORT)
+                #Se tem monstro
+                else:
+                     #Reseta Info
+                    self.info=1
+                    #Guarda tempo
+                    self.timestamp = time()
+                    #Ir para estado de ataque
+                    self.lock.acquire()
+                    self.state = BotState.ATTACKING
+                    self.lock.release()
             
             #Acoes estado ATTACKING
             elif self.state == BotState.ATTACKING:                 
@@ -238,10 +237,11 @@ class RagnarokBot:
                 else:
                     pass
             elif self.state == BotState.COLLECTING:  
-                #Informar uma vez
+                #Informar e esperar inicio movimentacao
                 if self.info==1:
                     print('Esperando monstro morrer')
-                    self.info=0  
+                    self.info=0
+                    sleep(0.5)
                 #Se o char parou de andar
                 elif self.have_stopped_moving():
                     #Pega item
