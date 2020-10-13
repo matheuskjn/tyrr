@@ -1,5 +1,5 @@
 # Tyrr
-Computer vision applied for build a bot for game ragnarok.<br/>
+Computer vision applied for build a bot for the game Ragnarok.<br/>
 
 This project is divided into the stages:<br/>
 1)Game screen capture (Windows LIB/Linux LIB)<br/>
