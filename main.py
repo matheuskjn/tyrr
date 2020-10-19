@@ -16,7 +16,7 @@ screen = Screen('TalonRO')
 gx,gy,gw,gh = screen.position()
 
 #Detecção Monstro
-detector = Detection('imagens/wormtail.png',threshold=THRESHOLD,output=OUTPUT)
+detector = Detection('imagens/wormtail.png',threshold=THRESHOLD,output=OUTPUT,debug=DEBUG)
 
 #Criar Bot
 bot = RagnarokBot(gx,gy,gw,gh)

@@ -14,7 +14,7 @@ class Detection:
     screenshot = None
     
     #Construtor
-    def __init__(self,object_img_path,method=cv.TM_CCOEFF_NORMED,threshold=0.5,EPS=0.1,output='point'):
+    def __init__(self,object_img_path,method=cv.TM_CCOEFF_NORMED,threshold=0.5,EPS=0.1,output='point',debug=False):
         #Para trancar objeto
         self.lock = Lock()
         #Carrega imagem
@@ -22,16 +22,23 @@ class Detection:
         # Salva dimensoes
         self.obj_w = self.obj_img.shape[1]
         self.obj_h = self.obj_img.shape[0]
-        # Define metodo
+        # Define parametros
         self.method = method
         self.threshold=threshold
         self.EPS =EPS
+        self.debug=debug
         #Define tipo de saida
         self.output = output
     
     #Localiza na imagem os templates e retorna os retangulos
     def find(self,screen_img):
         result = cv.matchTemplate(screen_img, self.obj_img, self.method)
+        
+        #Confiança
+        if self.debug:
+            min_val, max_val, min_loc, max_loc = cv.minMaxLoc(result)
+            print('Confiança: {:.1%}'.format(max_val))
+        
         locations = np.where(result >= self.threshold)
         locations = list(zip(*locations[::-1]))
         rectangles = []
