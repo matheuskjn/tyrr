@@ -7,9 +7,9 @@ import cv2 as cv
 from time import time
 
 #Parametro
-DEBUG = False
+DEBUG = True
 THRESHOLD=0.6
-OUTPUT='marker'
+OUTPUT='rectangle'
 
 #Captura tela do jogo
 screen = Screen('TalonRO')
@@ -41,9 +41,9 @@ while(True):
     bot.update_screenshot(screenshot)
 
     
-    #Se apertar 'q' então para o loop e threads (com cronometro)
+    #Se apertar 'q' então para o loop e threads (com cronofmetro)
     time_now= time()
-    if cv.waitKey(1) == ord('q') or (time_now-time_start)>300:
+    if cv.waitKey(1) == ord('q') or (time_now-time_start)>30:
         detector.stop()
         bot.stop()
         cv.destroyAllWindows()
