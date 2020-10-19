@@ -1,4 +1,4 @@
-# Tyrr Bot
+# Tyrr OpenCV Bot
 This project uses screen capture and object detection to extract information from the game Ragnarok, with this data you can control the mouse and keyboard to perform repeated activities<br/>
 
 The development was done in three steps:<br/>
