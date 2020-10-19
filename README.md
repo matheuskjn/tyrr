@@ -3,7 +3,7 @@ This project uses screen capture and object detection to extract information fro
 
 This project is divided into the stages:<br/>
   1) Game screen capture (Linux LIB)<br/>
- ![alt text](https://github.com/matheuskjn/tyrr/blob/main/imagens/readme_img1.png?raw=true) 
-  2) Identifying objects and monsters with OpenCV<br/>
-  
+ ![alt text](https://github.com/matheuskjn/tyrr/blob/main/imagens/readme/print.png?raw=true) 
+  2) Identifying objects with OpenCV<br/>
+ ![alt text](https://github.com/matheuskjn/tyrr/blob/main/imagens/readme/detect.gif?raw=true) 
   3) Process information to generate actions on the keyboard and mouse<br/>
